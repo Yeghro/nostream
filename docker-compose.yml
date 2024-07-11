@@ -2,6 +2,10 @@ services:
   nostream:
     build: .
     container_name: nostream
+    dns:
+    - 8.8.8.8
+    - 8.8.4.4
+
     environment:
       SECRET: ${SECRET}
       RELAY_PORT: 8008

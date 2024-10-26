@@ -3,17 +3,20 @@ import { RawData, WebSocket } from 'ws'
 import cluster from 'cluster'
 import { randomUUID } from 'crypto'
 
-import { createRelayedEventMessage, createSubscriptionMessage } from '../utils/messages'
+import { Event, RelayedEvent } from '../@types/event'
 import { EventLimits, FeeSchedule, Mirror, Settings } from '../@types/settings'
-import { getEventExpiration, getEventProofOfWork, getPubkeyProofOfWork, getPublicKey, getRelayPrivateKey, isEventIdValid, isEventKindOrRangeMatch, isEventMatchingFilter, isEventSignatureValid, isExpiredEvent } from '../utils/event'
 import { IEventRepository, IUserRepository } from '../@types/repositories'
-import { createLogger } from '../factories/logger-factory'
-import { Event } from '../@types/event'
-import { EventExpirationTimeMetadataKey } from '../constants/base'
 import { IRunnable } from '../@types/base'
 import { OutgoingEventMessage } from '../@types/messages'
-import { RelayedEvent } from '../@types/event'
+
+import { EventExpirationTimeMetadataKey } from '../constants/base'
 import { WebSocketServerAdapterEvent } from '../constants/adapter'
+
+import { createLogger } from '../factories/logger-factory'
+
+import { createRelayedEventMessage, createSubscriptionMessage } from '../utils/messages'
+import { getEventExpiration, getEventProofOfWork, getPubkeyProofOfWork, getPublicKey, getRelayPrivateKey, isEventIdValid, isEventKindOrRangeMatch, isEventMatchingFilter, isEventSignatureValid, isExpiredEvent } from '../utils/event'
+import { isValidContent } from '../utils/content-filter'
 
 const debug = createLogger('static-mirror-worker')
 
@@ -86,6 +89,11 @@ export class StaticMirroringWorker implements IRunnable {
             }
 
             if (isExpiredEvent(event)) {
+              return
+            }
+
+            if (!isValidContent(event)) {
+              debug('invalid content: %o', event)
               return
             }
 
@@ -264,7 +272,7 @@ export class StaticMirroringWorker implements IRunnable {
   protected async isUserAdmitted(event: Event): Promise<boolean> {
     const currentSettings = this.settings()
 
-    if (this.config.skipAdmissionCheck === true) {
+    if (this.config.limits?.skipAdmissionCheck) {
       return true
     }
 
